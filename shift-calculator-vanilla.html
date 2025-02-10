@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Hours Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tab-container {
+            margin-top: 20px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+        }
+        .tab.active {
+            border-bottom: 2px solid #007bff;
+            color: #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .helper-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Work Hours Calculator</h1>
+        
+        <div class="switch-container">
+            <input type="checkbox" id="breakToggle">
+            <label for="breakToggle">Deduct 30-minute break per shift</label>
+        </div>
+
+        <div class="tab-container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('format1')">Hours & Minutes Format</button>
+                <button class="tab" onclick="switchTab('format2')">Time Range Format</button>
+            </div>
+
+            <div id="format1" class="tab-content active">
+                <h3>Enter shifts (e.g., "5H 48M 5H 48M 5H 48M")</h3>
+                <textarea id="hoursMinutesInput" placeholder="5H 48M 5H 48M 5H 48M"></textarea>
+                <button onclick="calculateHoursMinutes()">Calculate Hours</button>
+            </div>
+
+            <div id="format2" class="tab-content">
+                <h3>Enter time ranges</h3>
+                <textarea id="timeRangeInput" placeholder="11am to 5pm, 6pm to 11pm"></textarea>
+                <div class="helper-text">
+                    Supports formats like: "11am", "11:00am", "11:00 am", "11 am", "2pm to 5pm"
+                </div>
+                <button onclick="calculateTimeRange()">Calculate Hours</button>
+            </div>
+        </div>
+
+        <div class="result" id="result">
+            <h3>Total Hours: 0.00</h3>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function normalizeTimeString(timeStr) {
+            timeStr = timeStr.toLowerCase().trim();
+            const timePattern = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/;
+            const match = timeStr.match(timePattern);
+            
+            if (match) {
+                let hour = parseInt(match[1]);
+                let minute = match[2] ? parseInt(match[2]) : 0;
+                let period = match[3];
+
+                if (!period) {
+                    if (hour === 12 || (hour < 7 && hour !== 0)) {
+                        period = 'pm';
+                    } else {
+                        period = 'am';
+                    }
+                }
+
+                if (period === 'pm' && hour !== 12) hour += 12;
+                if (period === 'am' && hour === 12) hour = 0;
+
+                return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            }
+            
+            return timeStr;
+        }
+
+        function calculateHoursMinutes() {
+            const input = document.getElementById('hoursMinutesInput').value;
+            const deductBreak = document.getElementById('breakToggle').checked;
+            
+            const shifts = input.trim().split(/\s+/);
+            let total = 0;
+
+            shifts.forEach(shift => {
+                const match = shift.match(/(\d+)H\s*(\d+)M/i);
+                if (match) {
+                    const hours = parseInt(match[1]);
+                    const minutes = parseInt(match[2]);
+                    total += hours + (minutes / 60);
+                }
+            });
+
+            if (deductBreak) {
+                total -= (shifts.length * 0.5);
+            }
+
+            total = Math.max(0, total);
+            document.getElementById('result').innerHTML = `<h3>Total Hours: ${total.toFixed(2)}</h3>`;
+        }
+
+        function calculateTimeRange() {
+            const input = document.getElementById('timeRangeInput').value;
+            const deductBreak = document.getElementById('breakToggle').checked;
+            
+            if (!input.trim()) {
+                document.getElementById('result').innerHTML = '<h3>Total Hours: 0.00</h3>';
+                return;
+            }
+
+            const ranges = input.split(',').map(range => range.trim());
+            let total = 0;
+
+            ranges.forEach(range => {
+                const times = range.split(/(?:\s+to\s+|\s+-\s+|\s{2,})/);
+                
+                if (times.length >= 2) {
+                    const startStr = normalizeTimeString(times[0]);
+                    const endStr = normalizeTimeString(times[1]);
+
+                    if (startStr && endStr) {
+                        const startDate = new Date(`2000/01/01 ${startStr}`);
+                        const endDate = new Date(`2000/01/01 ${endStr}`);
+                        
+                        let diff = (endDate - startDate) / (1000 * 60 * 60);
+                        if (diff < 0) diff += 24; // Handle overnight shifts
+                        
+                        total += diff;
+                    }
+                }
+            });
+
+            if (deductBreak) {
+                total -= (ranges.length * 0.5);
+            }
+
+            total = Math.max(0, total);
+            document.getElementById('result').innerHTML = `<h3>Total Hours: ${total.toFixed(2)}</h3>`;
+        }
+    </script>
+</body>
+</html>
